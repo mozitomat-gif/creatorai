@@ -1,7 +1,8 @@
 import { useState } from "react";
 
-const API = "https://api.anthropic.com/v1/messages";
-const MODEL = "claude-sonnet-4-20250514";
+const GROQ_API = "https://api.groq.com/openai/v1/chat/completions";
+const GROQ_KEY = "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";
+const MODEL = "llama-3.3-70b-versatile";
 
 const SYSTEM = `Tu es un expert en stratégie de contenu TikTok et Instagram Reels. 
 Tu travailles avec un créateur qui vit en van aménagé, est télépilote FPV drone, et filme ses voyages.
@@ -11,7 +12,7 @@ Réponds UNIQUEMENT en JSON pur sans backticks ni markdown :
 {
   "score": <0-100>,
   "verdict": "<emoji + verdict court>",
-  "contentType": "<Van/Camion|Paysages|FPV Drone>",
+  "contentType": "<Van/Camion 🚐|Paysages 🏔️|FPV Drone 🚁>",
   "points": [{"icon":"<emoji>","label":"<titre>","text":"<explication>"}],
   "actions": [{"priority":"haute|moyenne|basse","action":"<action concrète>"}],
   "viralScore": <0-100>,
@@ -177,25 +178,39 @@ export default function App() {
 
   const f = (k, v) => setFd(p => ({ ...p, [k]: v }));
 
+  async function callGroq(systemPrompt, userPrompt, maxTokens = 1000) {
+    const res = await fetch(GROQ_API, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "Authorization": `Bearer ${GROQ_KEY}` },
+      body: JSON.stringify({
+        model: MODEL,
+        max_tokens: maxTokens,
+        messages: [
+          { role: "system", content: systemPrompt },
+          { role: "user", content: userPrompt }
+        ]
+      })
+    });
+    const data = await res.json();
+    const text = data.choices?.[0]?.message?.content || "";
+    return JSON.parse(text.replace(/```json|```/g, "").trim());
+  }
+
   async function callAI(prompt) {
     setLoading(true); setResult(null); setError(null);
     try {
-      const res = await fetch(API, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ model: MODEL, max_tokens: 1000, system: SYSTEM, messages: [{ role: "user", content: prompt }] }) });
-      const data = await res.json();
-      const text = data.content?.map(b => b.text || "").join("") || "";
-      setResult(JSON.parse(text.replace(/```json|```/g, "").trim()));
+      const parsed = await callGroq(SYSTEM, prompt, 1000);
+      setResult(parsed);
     } catch(e) { setError("Erreur IA. Réessaie !"); }
     setLoading(false);
   }
 
   async function generateSchedule() {
-    setScheduleLoading(true); setSchedule(null);
+    setScheduleLoading(true); setSchedule(null); setError(null);
     try {
-      const res = await fetch(API, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ model: MODEL, max_tokens: 2000, system: SCHEDULE_SYSTEM, messages: [{ role: "user", content: "Génère mon programme hebdomadaire optimal pour 5 à 7 posts par semaine sur TikTok et Instagram Reels. Tiens compte que les paysages performent le mieux. Répartis intelligemment les 3 types de contenu." }] }) });
-      const data = await res.json();
-      const text = data.content?.map(b => b.text || "").join("") || "";
-      setSchedule(JSON.parse(text.replace(/```json|```/g, "").trim()));
-    } catch(e) { setError("Erreur génération programme."); }
+      const parsed = await callGroq(SCHEDULE_SYSTEM, "Génère mon programme hebdomadaire optimal pour 5 à 7 posts par semaine sur TikTok et Instagram Reels. Tiens compte que les paysages performent le mieux. Répartis intelligemment les 3 types de contenu.", 2000);
+      setSchedule(parsed);
+    } catch(e) { setError("Erreur génération programme. Réessaie !"); }
     setScheduleLoading(false);
   }
 
@@ -243,7 +258,6 @@ export default function App() {
             </div>
           </div>
 
-          {/* Tabs */}
           <div style={{ display: "flex", gap: 3, overflowX: "auto" }}>
             {TABS.map(t => (
               <button key={t.id} onClick={() => { setTab(t.id); setResult(null); }} style={{ padding: "9px 13px", borderRadius: "9px 9px 0 0", border: "none", cursor: "pointer", background: tab===t.id?"rgba(254,44,85,0.14)":"transparent", color: tab===t.id?"#fe2c55":"rgba(255,255,255,0.4)", fontWeight: tab===t.id?700:500, fontSize: 11, whiteSpace: "nowrap", borderBottom: tab===t.id?"2px solid #fe2c55":"2px solid transparent", transition: "all 0.2s", fontFamily: "inherit" }}>
@@ -256,7 +270,7 @@ export default function App() {
 
       <div style={{ maxWidth: 720, margin: "0 auto", padding: "22px 15px 0" }}>
 
-        {/* ═══ PROGRAMME HEBDOMADAIRE ═══ */}
+        {/* ═══ PROGRAMME ═══ */}
         {tab === "schedule" && (
           <div style={{ animation: "fadeIn 0.4s ease" }}>
             <div style={{ marginBottom: 18 }}>
@@ -270,12 +284,10 @@ export default function App() {
 
             {schedule && (
               <div style={{ animation: "fadeIn 0.5s ease" }}>
-                {/* Strategy banner */}
                 <div style={{ background: "linear-gradient(135deg,rgba(254,44,85,0.12),rgba(131,58,180,0.12))", border: "1px solid rgba(254,44,85,0.2)", borderRadius: 12, padding: "12px 15px", marginBottom: 16, fontSize: 13, color: "rgba(255,255,255,0.8)", lineHeight: 1.6 }}>
                   💡 <strong>Stratégie :</strong> {schedule.strategy}
                 </div>
 
-                {/* Stats bar */}
                 <div style={{ display: "flex", gap: 8, marginBottom: 16, flexWrap: "wrap" }}>
                   {["Van/Camion 🚐","Paysages 🏔️","FPV Drone 🚁"].map(type => {
                     const count = schedule.week?.flatMap(d => d.posts).filter(p => p.type === type).length || 0;
@@ -287,7 +299,6 @@ export default function App() {
                   })}
                 </div>
 
-                {/* Days */}
                 <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
                   {DAYS_ORDER.map(dayName => {
                     const dayData = schedule.week?.find(d => d.day === dayName);
@@ -300,14 +311,13 @@ export default function App() {
                     const isOpen = expandedDay === dayName;
                     return (
                       <div key={dayName} className="day-card" style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.09)", borderRadius: 12, overflow: "hidden", transition: "border-color 0.2s" }}>
-                        {/* Day header */}
                         <div onClick={() => setExpandedDay(isOpen ? null : dayName)} style={{ padding: "12px 15px", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
                           <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
                             <span style={{ fontSize: 13, fontWeight: 800, minWidth: 80 }}>{dayName}</span>
-                            <div style={{ display: "flex", gap: 5 }}>
+                            <div style={{ display: "flex", gap: 5, flexWrap: "wrap" }}>
                               {dayData.posts.map((p, i) => (
                                 <span key={i} style={{ background: TYPE_COLORS[p.type]+"22", color: TYPE_COLORS[p.type], border: `1px solid ${TYPE_COLORS[p.type]}35`, borderRadius: 5, padding: "2px 7px", fontSize: 10, fontWeight: 600 }}>
-                                  {p.type.split(" ")[1]} {p.time}
+                                  {p.type?.split(" ")[1]} {p.time}
                                 </span>
                               ))}
                             </div>
@@ -315,7 +325,6 @@ export default function App() {
                           <span style={{ color: "rgba(255,255,255,0.4)", fontSize: 12 }}>{isOpen ? "▲" : "▼"}</span>
                         </div>
 
-                        {/* Expanded posts */}
                         {isOpen && (
                           <div style={{ borderTop: "1px solid rgba(255,255,255,0.07)", padding: "12px 15px", display: "flex", flexDirection: "column", gap: 12 }}>
                             {dayData.posts.map((post, i) => {
@@ -368,7 +377,7 @@ export default function App() {
               <div>
                 <label style={lbl}>URL DE LA VIDÉO (TikTok ou Instagram)</label>
                 <input style={inp} placeholder="https://www.tiktok.com/@toi/video/..." value={fd.videoUrl} onChange={e => f("videoUrl", e.target.value)}/>
-                <div style={{ fontSize: 10, color: "rgba(255,255,255,0.25)", marginTop: 4 }}>L'IA analysera le lien pour t'aider à optimiser ta prochaine vidéo similaire</div>
+                <div style={{ fontSize: 10, color: "rgba(255,255,255,0.25)", marginTop: 4 }}>L'IA analysera le contexte pour optimiser ta prochaine vidéo similaire</div>
               </div>
               <div><label style={lbl}>TITRE / ACCROCHE</label><input style={inp} placeholder="Ex: Run FPV dans les Alpes 🏔️" value={fd.title} onChange={e => f("title", e.target.value)}/></div>
               <div><label style={lbl}>CAPTION UTILISÉ</label><textarea style={{ ...inp, minHeight: 70 }} placeholder="Ton texte de publication…" value={fd.description} onChange={e => f("description", e.target.value)}/></div>
