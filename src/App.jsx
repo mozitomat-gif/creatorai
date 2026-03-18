@@ -5,12 +5,31 @@ const GROQ_KEY = import.meta.env.VITE_GROQ_API_KEY;
 const MODEL = "llama-3.3-70b-versatile";
 const STORAGE_KEY = "creatorai_videos_v1";
 
-const SYSTEM_VIDEO = `Tu es un expert en stratégie de contenu TikTok et Instagram Reels pour un créateur qui vit en van aménagé, est télépilote FPV drone, et filme ses voyages.
-Types : 🚐 Van/Camion, 🏔️ Paysages, 🚁 FPV Drone (Run = vol continu brut / Multiclip = plusieurs clips montés / Montage = cinématique storytelling).
-Les paysages performent le mieux. Génère un caption complet, accrocheur et prêt à copier.
+const SYSTEM_VIDEO = `Tu es un expert en stratégie de contenu TikTok et Instagram Reels pour un créateur qui vit en van aménagé, est télépilote FPV drone freestyle, et filme ses voyages.
+Types : 🚐 Van/Camion, 🏔️ Paysages, 🚁 FPV Drone (Run / Multiclip / Montage).
+
+RÈGLES ABSOLUES :
+1. Tu reçois des infos contextuelles. Tu NE recopies JAMAIS ce que le créateur a écrit. Tu digères, tu réinterprètes, tu crées quelque chose de nouveau.
+2. Le caption doit sembler écrit par un humain, pas généré par une IA. Naturel, authentique, direct.
+3. Varie TOUJOURS le style — jamais deux fois le même format.
+
+CAPTION (le seul texte publié, pas de titre séparé sur TikTok/Reels) :
+- Naturel, comme si tu parlais à tes abonnés
+- Style varié : parfois une question, parfois une phrase courte mystérieuse, parfois POV, parfois factuel, parfois une émotion brute, parfois un chiffre ou détail concret
+- Adjectifs modérés OK, jamais de superlatifs exagérés
+- Accroche forte sur la première ligne
+- JAMAIS un résumé ou récit de la description fournie — digère et réinterprète
+
+HASHTAGS :
+- 20-25 hashtags ciblés et variés
+- Le drone utilisé peut apparaître subtilement et rarement, jamais systématiquement
+- Priorité aux hashtags de niche performants
+
 Réponds UNIQUEMENT en JSON pur sans backticks :
 {
-  "improvedTitle": "<titre accrocheur optimisé>",
+  "captionOption1": "<caption style court/mystérieux/question — max 2 lignes>",
+  "captionOption2": "<caption style lifestyle/POV/factuel — 3-4 lignes>",
+  "caption": "<le meilleur des deux selon le contenu>",
   "contentType": "<Van/Camion 🚐|Paysages 🏔️|FPV Drone 🚁>",
   "fpvSubtype": "<Run|Multiclip|Montage|null>",
   "thread": "<fil rouge détecté ex: FPV Chronicles|Build Van Serie|Road Trip Alps|Vie en Van>",
@@ -20,11 +39,10 @@ Réponds UNIQUEMENT en JSON pur sans backticks :
   "bestDay": "<Lundi|Mardi|Mercredi|Jeudi|Vendredi|Samedi|Dimanche>",
   "bestTime": "<HH:MM>",
   "priority": <1-10>,
-  "caption": "<caption complet : accroche forte + corps + appel à l'action, prêt à copier directement>",
-  "hashtags": "<20-25 hashtags optimisés TikTok/Reels>",
+  "hashtags": "<20-25 hashtags optimisés>",
   "tip": "<conseil algo court>",
   "monetizationTip": "<conseil monétisation court>"
-}`;
+}`
 
 const SYSTEM_SCHEDULE = `Tu es un expert en stratégie éditoriale TikTok et Instagram Reels pour un créateur van/FPV/paysages.
 Tu reçois une liste de vidéos analysées. Programme de publication optimal EN JSON pur sans backticks :
@@ -71,28 +89,21 @@ const DESC_FIELDS = {
   "Paysages 🏔️": [
     {key:"lieu",label:"Lieu",placeholder:"Ex: Gorges de l'Ardèche, Col du Galibier..."},
     {key:"ambiance",label:"Ambiance / Lumière",placeholder:"Ex: coucher de soleil, brume matinale, ciel étoilé..."},
-    {key:"duree",label:"Durée de la vidéo",placeholder:"Ex: 30 secondes, 1 minute..."},
-    {key:"musique",label:"Musique",placeholder:"Ex: ambient électro, pas de musique, lo-fi..."},
-    {key:"emotion",label:"Émotion / Message",placeholder:"Ex: sentiment de liberté, solitude apaisante..."},
+    {key:"emotion",label:"Émotion / Moment",placeholder:"Ex: sentiment de liberté, silence total, réveil dans le van..."},
   ],
   "Van/Camion 🚐": [
     {key:"sujet",label:"Sujet principal",placeholder:"Ex: installation du toit ouvrant, aménagement cuisine..."},
     {key:"etape",label:"Étape / Épisode",placeholder:"Ex: épisode 3 du build, semaine 2 sur la route..."},
-    {key:"lieu",label:"Lieu",placeholder:"Ex: parking en montagne, aire de camping..."},
-    {key:"ambiance",label:"Ambiance",placeholder:"Ex: vie quotidienne, travaux, détente..."},
-    {key:"musique",label:"Musique",placeholder:"Ex: indie folk, rap, pas de musique..."},
-    {key:"message",label:"Message / Conseil",placeholder:"Ex: astuce gain de place, erreur à éviter..."},
+    {key:"lieu",label:"Lieu",placeholder:"Ex: parking en montagne, bord de mer..."},
+    {key:"ambiance",label:"Ambiance / Moment",placeholder:"Ex: vie quotidienne, travaux, détente, réveil..."},
+    {key:"message",label:"Message / Anecdote",placeholder:"Ex: astuce gain de place, moment inattendu, galère du jour..."},
   ],
   "FPV Drone 🚁": [
-    {key:"lieu",label:"Lieu / Spot",placeholder:"Ex: forêt de pins Ardèche, falaises Verdon..."},
-    {key:"technique",label:"Technique / Figures",placeholder:"Ex: split-S, dive bombe, freestyle technique..."},
-    {key:"ambiance",label:"Ambiance / Lumière",placeholder:"Ex: golden hour, ombre et lumière, brume..."},
-    {key:"duree",label:"Durée",placeholder:"Ex: 45 secondes, 2 minutes..."},
-    {key:"musique",label:"Musique",placeholder:"Ex: drum and bass, phonk, ambient..."},
-    {key:"style",label:"Style de montage",placeholder:"Ex: cuts rapides, slow motion, transitions smooth..."},
-    {key:"drone",label:"Drone utilisé",placeholder:"Ex: 5 pouces freestyle, cinewhoop, toothpick..."},
+    {key:"lieu",label:"Lieu / Spot",placeholder:"Ex: forêt de pins Ardèche, falaises Verdon, montagne..."},
+    {key:"ambiance",label:"Ambiance / Lumière",placeholder:"Ex: golden hour, ombre et lumière, brume, nuit..."},
+    {key:"drone",label:"Drone utilisé",placeholder:"Ex: 5 pouces freestyle, cinewhoop, drone stabilisé..."},
   ],
-};
+}
 
 // ─── COMPONENTS ───────────────────────────────────────────────────────────────
 function ScoreRing({score,size=72,color="#a78bfa"}) {
@@ -104,7 +115,7 @@ function ScoreRing({score,size=72,color="#a78bfa"}) {
         strokeDasharray={circ} strokeDashoffset={offset} strokeLinecap="round"
         style={{transition:"stroke-dashoffset 1s ease"}}/>
       <text x="50%" y="50%" textAnchor="middle" dominantBaseline="middle"
-        style={{transform:"rotate(90deg)",transformOrigin:"center",fill:"white",fontSize:size*0.24,fontWeight:800,fontFamily:"inherit"}}>
+        style={{transform:"rotate(90deg)",transformOrigin:"center",fill:"#1a1a2e",fontSize:size*0.24,fontWeight:800,fontFamily:"inherit"}}>
         {score}
       </text>
     </svg>
@@ -115,7 +126,7 @@ function CopyBtn({text}) {
   const [ok,setOk]=useState(false);
   return (
     <button onClick={()=>{navigator.clipboard?.writeText(text);setOk(true);setTimeout(()=>setOk(false),2000);}}
-      style={{padding:"3px 9px",borderRadius:6,border:"1px solid rgba(167,139,250,0.3)",background:"rgba(167,139,250,0.08)",color:ok?"#4ade80":"rgba(167,139,250,0.8)",cursor:"pointer",fontSize:10,fontFamily:"inherit",transition:"all 0.2s",whiteSpace:"nowrap"}}>
+      style={{padding:"3px 9px",borderRadius:6,border:"1px solid rgba(167,139,250,0.3)",background:"rgba(167,139,250,0.08)",color:ok?"#16a34a":"#7c3aed",cursor:"pointer",fontSize:10,fontFamily:"inherit",transition:"all 0.2s",whiteSpace:"nowrap"}}>
       {ok?"✅":"📋"}
     </button>
   );
@@ -124,13 +135,13 @@ function CopyBtn({text}) {
 function Dots() {
   return (
     <div style={{display:"flex",gap:6,alignItems:"center",justifyContent:"center",padding:"32px 0"}}>
-      {[0,1,2].map(i=><div key={i} style={{width:8,height:8,borderRadius:"50%",background:"#a78bfa",animation:`bounce 1.2s ease-in-out ${i*0.2}s infinite`}}/>)}
+      {[0,1,2].map(i=><div key={i} style={{width:8,height:8,borderRadius:"50%",background:"#7c3aed",animation:`bounce 1.2s ease-in-out ${i*0.2}s infinite`}}/>)}
     </div>
   );
 }
 
 function Tag({label,color}) {
-  return <span style={{background:color+"18",color,border:`1px solid ${color}35`,borderRadius:5,padding:"2px 8px",fontSize:10,fontWeight:700,whiteSpace:"nowrap"}}>{label}</span>;
+  return <span style={{background:color+"22",color,border:`1px solid ${color}55`,borderRadius:5,padding:"2px 8px",fontSize:10,fontWeight:700,whiteSpace:"nowrap"}}>{label}</span>;
 }
 
 function AIResult({result}) {
@@ -145,7 +156,7 @@ function AIResult({result}) {
           {result.contentType&&<Tag label={result.contentType} color={tc}/>}
           {result.monetizationTip&&<div style={{marginTop:8,background:"rgba(251,191,36,0.08)",border:"1px solid rgba(251,191,36,0.2)",borderRadius:7,padding:"6px 10px",fontSize:11,color:"#fbbf24",lineHeight:1.5}}>💰 {result.monetizationTip}</div>}
         </div>
-        {result.viralScore!==undefined&&<div style={{textAlign:"center"}}><ScoreRing score={result.viralScore} size={52} color="#38bdf8"/><div style={{fontSize:9,color:"rgba(255,255,255,0.3)",marginTop:2}}>VIRAL</div></div>}
+        {result.viralScore!==undefined&&<div style={{textAlign:"center"}}><ScoreRing score={result.viralScore} size={52} color="#38bdf8"/><div style={{fontSize:9,color:"rgba(26,26,46,0.45)",marginTop:2}}>VIRAL</div></div>}
       </div>
       {result.suggestedCaption&&(
         <div style={{background:"rgba(56,189,248,0.06)",border:"1px solid rgba(56,189,248,0.15)",borderRadius:10,padding:"10px 12px",marginBottom:10}}>
@@ -153,7 +164,7 @@ function AIResult({result}) {
             <span style={{color:"#38bdf8",fontWeight:700,fontSize:11}}>✍️ Caption</span>
             <CopyBtn text={result.suggestedCaption}/>
           </div>
-          <div style={{fontSize:12,color:"rgba(255,255,255,0.7)",lineHeight:1.6}}>{result.suggestedCaption}</div>
+          <div style={{fontSize:12,color:"rgba(26,26,46,0.8)",lineHeight:1.6}}>{result.suggestedCaption}</div>
         </div>
       )}
       {result.suggestedHashtags&&(
@@ -166,20 +177,20 @@ function AIResult({result}) {
         </div>
       )}
       {result.points?.map((p,i)=>(
-        <div key={i} style={{background:"rgba(255,255,255,0.03)",border:"1px solid rgba(255,255,255,0.07)",borderRadius:10,padding:"11px 13px",marginBottom:8}}>
+        <div key={i} style={{background:"rgba(255,255,255,0.9)",border:"1px solid rgba(26,26,46,0.1)",borderRadius:10,padding:"11px 13px",marginBottom:8}}>
           <div style={{display:"flex",gap:8,alignItems:"center",marginBottom:3}}><span style={{fontSize:16}}>{p.icon}</span><span style={{fontWeight:700,fontSize:12}}>{p.label}</span></div>
-          <p style={{margin:0,color:"rgba(255,255,255,0.45)",fontSize:11,lineHeight:1.6}}>{p.text}</p>
+          <p style={{margin:0,color:"rgba(26,26,46,0.55)",fontSize:11,lineHeight:1.6}}>{p.text}</p>
         </div>
       ))}
       {result.actions?.length>0&&(
-        <div style={{background:"rgba(255,255,255,0.02)",border:"1px solid rgba(255,255,255,0.06)",borderRadius:10,overflow:"hidden"}}>
-          <div style={{padding:"10px 13px",borderBottom:"1px solid rgba(255,255,255,0.06)",fontSize:10,fontWeight:700,color:"rgba(255,255,255,0.3)",letterSpacing:1}}>⚡ ACTIONS</div>
+        <div style={{background:"rgba(26,26,46,0.03)",border:"1px solid rgba(26,26,46,0.08)",borderRadius:10,overflow:"hidden"}}>
+          <div style={{padding:"10px 13px",borderBottom:"1px solid rgba(255,255,255,0.06)",fontSize:10,fontWeight:700,color:"rgba(26,26,46,0.45)",letterSpacing:1}}>⚡ ACTIONS</div>
           {result.actions.map((a,i)=>{
             const pc={haute:"#f472b6",moyenne:"#fbbf24",basse:"#4ade80"}[a.priority]||"#aaa";
             return (
               <div key={i} style={{padding:"10px 13px",borderBottom:i<result.actions.length-1?"1px solid rgba(255,255,255,0.04)":"none",display:"flex",gap:8,alignItems:"flex-start"}}>
                 <span style={{background:pc+"18",color:pc,border:`1px solid ${pc}35`,borderRadius:4,padding:"1px 7px",fontSize:9,fontWeight:700,letterSpacing:0.5,whiteSpace:"nowrap",marginTop:1}}>{a.priority.toUpperCase()}</span>
-                <span style={{fontSize:12,color:"rgba(255,255,255,0.7)",lineHeight:1.6}}>{a.action}</span>
+                <span style={{fontSize:12,color:"rgba(26,26,46,0.8)",lineHeight:1.6}}>{a.action}</span>
               </div>
             );
           })}
@@ -205,11 +216,11 @@ function AddVideoForm({onAdd,onCancel}) {
     onAdd({title,type,fpvSubtype:isFPV?fpvSubtype:null,description,fields});
   }
 
-  const inp={width:"100%",background:"rgba(255,255,255,0.05)",border:"1px solid rgba(167,139,250,0.2)",borderRadius:9,padding:"10px 12px",color:"white",fontSize:12,outline:"none",boxSizing:"border-box",fontFamily:"inherit"};
+  const inp={width:"100%",background:"#ffffff",border:"1px solid rgba(167,139,250,0.2)",borderRadius:9,padding:"10px 12px",color:"#1a1a2e",fontSize:12,outline:"none",boxSizing:"border-box",fontFamily:"inherit"};
   const lbl={color:"rgba(167,139,250,0.6)",fontSize:10,fontWeight:700,letterSpacing:0.8,marginBottom:4,display:"block"};
 
   return (
-    <div style={{background:"rgba(167,139,250,0.05)",border:"1px solid rgba(167,139,250,0.18)",borderRadius:14,padding:16,marginBottom:16,animation:"fadeIn 0.3s ease"}}>
+    <div style={{background:"rgba(167,139,250,0.06)",border:"1px solid rgba(167,139,250,0.18)",borderRadius:14,padding:16,marginBottom:16,animation:"fadeIn 0.3s ease"}}>
       <div style={{fontSize:12,fontWeight:800,color:"#a78bfa",marginBottom:14,letterSpacing:0.5}}>+ NOUVELLE VIDÉO</div>
 
       {/* Type selector */}
@@ -235,7 +246,7 @@ function AddVideoForm({onAdd,onCancel}) {
               </button>
             ))}
           </div>
-          <div style={{fontSize:10,color:"rgba(255,255,255,0.2)",marginTop:5}}>
+          <div style={{fontSize:10,color:"rgba(26,26,46,0.35)",marginTop:5}}>
             {fpvSubtype==="Run"&&"Vol continu brut, une seule prise, sensations pures"}
             {fpvSubtype==="Multiclip"&&"Plusieurs clips montés ensemble, transitions, musique"}
             {fpvSubtype==="Montage"&&"Vidéo élaborée, storytelling, cinématique"}
@@ -251,7 +262,7 @@ function AddVideoForm({onAdd,onCancel}) {
 
       {/* Guided description fields */}
       <div style={{marginBottom:14}}>
-        <label style={{...lbl,color:"rgba(255,255,255,0.4)",marginBottom:10}}>DESCRIPTION (pour que l'IA génère un meilleur caption)</label>
+        <label style={{...lbl,color:"rgba(26,26,46,0.5)",marginBottom:10}}>DESCRIPTION (pour que l'IA génère un meilleur caption)</label>
         <div style={{display:"flex",flexDirection:"column",gap:9}}>
           {descFields.map(field=>(
             <div key={field.key}>
@@ -263,10 +274,10 @@ function AddVideoForm({onAdd,onCancel}) {
       </div>
 
       <div style={{display:"flex",gap:9}}>
-        <button onClick={submit} disabled={!title} style={{flex:2,padding:"12px",borderRadius:10,border:"none",cursor:title?"pointer":"not-allowed",background:title?"linear-gradient(135deg,#7c3aed,#2563eb)":"rgba(255,255,255,0.06)",color:"white",fontSize:13,fontWeight:700,fontFamily:"inherit",opacity:title?1:0.5}}>
+        <button onClick={submit} disabled={!title} style={{flex:2,padding:"12px",borderRadius:10,border:"none",cursor:title?"pointer":"not-allowed",background:title?"linear-gradient(135deg,#7c3aed,#2563eb)":"rgba(255,255,255,0.06)",color:"#1a1a2e",fontSize:13,fontWeight:700,fontFamily:"inherit",opacity:title?1:0.5}}>
           🤖 Ajouter & Analyser
         </button>
-        <button onClick={onCancel} style={{flex:1,padding:"12px",borderRadius:10,border:"1px solid rgba(255,255,255,0.1)",background:"transparent",color:"rgba(255,255,255,0.4)",cursor:"pointer",fontSize:12,fontFamily:"inherit"}}>
+        <button onClick={onCancel} style={{flex:1,padding:"12px",borderRadius:10,border:"1px solid rgba(26,26,46,0.12)",background:"transparent",color:"rgba(26,26,46,0.5)",cursor:"pointer",fontSize:12,fontFamily:"inherit"}}>
           Annuler
         </button>
       </div>
@@ -356,15 +367,15 @@ Génère un caption complet et optimisé basé sur tous ces éléments.`;
     return true;
   }).sort((a,b)=>(b.analysis?.priority||0)-(a.analysis?.priority||0));
 
-  const inp={width:"100%",background:"rgba(255,255,255,0.05)",border:"1px solid rgba(167,139,250,0.2)",borderRadius:10,padding:"11px 13px",color:"white",fontSize:13,outline:"none",boxSizing:"border-box",fontFamily:"inherit",transition:"border-color 0.2s"};
+  const inp={width:"100%",background:"#ffffff",border:"1px solid rgba(167,139,250,0.2)",borderRadius:10,padding:"11px 13px",color:"#1a1a2e",fontSize:13,outline:"none",boxSizing:"border-box",fontFamily:"inherit",transition:"border-color 0.2s"};
   const lbl={color:"rgba(167,139,250,0.7)",fontSize:10,fontWeight:700,letterSpacing:1,marginBottom:5,display:"block"};
 
   function PrimaryBtn({label,onClick,disabled,color="#a78bfa"}) {
-    return <button onClick={onClick} disabled={disabled} style={{width:"100%",padding:"13px",borderRadius:11,border:"none",cursor:disabled?"not-allowed":"pointer",background:disabled?"rgba(255,255,255,0.06)":`linear-gradient(135deg,${color},${color}99)`,color:"white",fontSize:13,fontWeight:700,fontFamily:"inherit",opacity:disabled?0.5:1,transition:"all 0.2s"}}>{label}</button>;
+    return <button onClick={onClick} disabled={disabled} style={{width:"100%",padding:"13px",borderRadius:11,border:"none",cursor:disabled?"not-allowed":"pointer",background:disabled?"rgba(255,255,255,0.06)":`linear-gradient(135deg,${color},${color}99)`,color:"#1a1a2e",fontSize:13,fontWeight:700,fontFamily:"inherit",opacity:disabled?0.5:1,transition:"all 0.2s"}}>{label}</button>;
   }
 
   return (
-    <div style={{minHeight:"100vh",background:"#0d0f1a",color:"white",fontFamily:"'Barlow Condensed','Sora',sans-serif",paddingBottom:70}}>
+    <div style={{minHeight:"100vh",background:"#f4f5f9",color:"#1a1a2e",fontFamily:"'Barlow Condensed','Sora',sans-serif",paddingBottom:70}}>
       <style>{`
         @import url('https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@400;600;700;800;900&family=Barlow:wght@400;500;600&display=swap');
         *{box-sizing:border-box;}
@@ -372,34 +383,34 @@ Génère un caption complet et optimisé basé sur tous ces éléments.`;
         @keyframes fadeIn{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:translateY(0)}}
         input:focus,textarea:focus,select:focus{border-color:rgba(167,139,250,0.5)!important;}
         textarea{resize:vertical;}
-        ::-webkit-scrollbar{width:3px;}
-        ::-webkit-scrollbar-thumb{background:#a78bfa;border-radius:2px;}
-        .vcard:hover{background:rgba(167,139,250,0.06)!important;border-color:rgba(167,139,250,0.2)!important;}
+        ::-webkit-scrollbar{width:3px;} ::-webkit-scrollbar-track{background:#f4f5f9;}
+        ::-webkit-scrollbar-thumb{background:#7c3aed;border-radius:2px;}
+        .vcard:hover{background:rgba(167,139,250,0.08)!important;border-color:rgba(167,139,250,0.3)!important;}
       `}</style>
 
       {/* HEADER */}
-      <div style={{background:"linear-gradient(180deg,#1a1030 0%,#0d0f1a 100%)",borderBottom:"1px solid rgba(167,139,250,0.1)",padding:"16px 16px 0",position:"sticky",top:0,zIndex:100,backdropFilter:"blur(20px)"}}>
+      <div style={{background:"linear-gradient(180deg,#ffffff 0%,#f4f5f9 100%)",borderBottom:"1px solid rgba(167,139,250,0.25)",padding:"16px 16px 0",position:"sticky",top:0,zIndex:100,backdropFilter:"blur(20px)"}}>
         <div style={{maxWidth:720,margin:"0 auto"}}>
           <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:12}}>
             <div style={{display:"flex",alignItems:"center",gap:10}}>
               <div style={{width:34,height:34,borderRadius:9,background:"linear-gradient(135deg,#7c3aed,#2563eb)",display:"flex",alignItems:"center",justifyContent:"center",fontSize:17,fontWeight:900,boxShadow:"0 0 18px rgba(124,58,237,0.4)"}}>C</div>
               <div>
                 <div style={{fontSize:17,fontWeight:900,letterSpacing:0.5,lineHeight:1}}>
-                  <span style={{color:"#a78bfa"}}>Creator</span><span style={{color:"white"}}>AI</span>
+                  <span style={{color:"#a78bfa"}}>Creator</span><span style={{color:"#1a1a2e"}}>AI</span>
                   <span style={{fontSize:9,background:"rgba(167,139,250,0.15)",color:"#a78bfa",borderRadius:20,padding:"2px 6px",marginLeft:6,fontWeight:700}}>BETA</span>
                 </div>
-                <div style={{color:"rgba(255,255,255,0.2)",fontSize:9,letterSpacing:0.5}}>🚐 VAN · 🏔️ PAYSAGES · 🚁 FPV</div>
+                <div style={{color:"rgba(26,26,46,0.35)",fontSize:9,letterSpacing:0.5}}>🚐 VAN · 🏔️ PAYSAGES · 🚁 FPV</div>
               </div>
             </div>
             <div style={{display:"flex",gap:5,alignItems:"center"}}>
-              {videos.length>0&&<div style={{fontSize:10,color:"rgba(255,255,255,0.3)",background:"rgba(255,255,255,0.05)",borderRadius:6,padding:"3px 8px"}}>{videos.length} vidéo{videos.length>1?"s":""} 💾</div>}
+              {videos.length>0&&<div style={{fontSize:10,color:"rgba(26,26,46,0.45)",background:"#ffffff",borderRadius:6,padding:"3px 8px"}}>{videos.length} vidéo{videos.length>1?"s":""} 💾</div>}
               <div style={{padding:"4px 8px",borderRadius:6,background:"rgba(244,114,182,0.1)",color:"#f472b6",fontSize:9,fontWeight:700,border:"1px solid rgba(244,114,182,0.2)"}}>TIKTOK</div>
               <div style={{padding:"4px 8px",borderRadius:6,background:"rgba(167,139,250,0.1)",color:"#a78bfa",fontSize:9,fontWeight:700,border:"1px solid rgba(167,139,250,0.2)"}}>REELS</div>
             </div>
           </div>
           <div style={{display:"flex",gap:2,overflowX:"auto"}}>
             {TABS.map(t=>(
-              <button key={t.id} onClick={()=>{setTab(t.id);setAiResult(null);setAiError(null);}} style={{padding:"9px 11px",borderRadius:"8px 8px 0 0",border:"none",cursor:"pointer",background:tab===t.id?"rgba(167,139,250,0.12)":"transparent",color:tab===t.id?"#a78bfa":"rgba(255,255,255,0.3)",fontWeight:tab===t.id?800:500,fontSize:11,whiteSpace:"nowrap",borderBottom:tab===t.id?"2px solid #a78bfa":"2px solid transparent",fontFamily:"inherit",letterSpacing:0.3,transition:"all 0.2s"}}>
+              <button key={t.id} onClick={()=>{setTab(t.id);setAiResult(null);setAiError(null);}} style={{padding:"9px 11px",borderRadius:"8px 8px 0 0",border:"none",cursor:"pointer",background:tab===t.id?"rgba(167,139,250,0.15)":"transparent",color:tab===t.id?"#a78bfa":"rgba(255,255,255,0.3)",fontWeight:tab===t.id?800:500,fontSize:11,whiteSpace:"nowrap",borderBottom:tab===t.id?"2px solid #a78bfa":"2px solid transparent",fontFamily:"inherit",letterSpacing:0.3,transition:"all 0.2s"}}>
                 {t.icon} {t.label}
               </button>
             ))}
@@ -415,10 +426,10 @@ Génère un caption complet et optimisé basé sur tous ces éléments.`;
             <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:14}}>
               <div>
                 <h2 style={{fontSize:19,fontWeight:900,margin:"0 0 2px",letterSpacing:0.5}}>🎬 Mes Vidéos</h2>
-                <p style={{color:"rgba(255,255,255,0.25)",fontSize:10,margin:0}}>Sauvegardées localement · {videos.filter(v=>v.status==="en attente").length} en attente</p>
+                <p style={{color:"rgba(26,26,46,0.4)",fontSize:10,margin:0}}>Sauvegardées localement · {videos.filter(v=>v.status==="en attente").length} en attente</p>
               </div>
               {!showAddForm&&(
-                <button onClick={()=>setShowAddForm(true)} style={{padding:"9px 16px",borderRadius:9,border:"none",cursor:"pointer",background:"linear-gradient(135deg,#7c3aed,#2563eb)",color:"white",fontSize:12,fontWeight:700,fontFamily:"inherit",boxShadow:"0 4px 15px rgba(124,58,237,0.3)"}}>
+                <button onClick={()=>setShowAddForm(true)} style={{padding:"9px 16px",borderRadius:9,border:"none",cursor:"pointer",background:"linear-gradient(135deg,#7c3aed,#2563eb)",color:"#1a1a2e",fontSize:12,fontWeight:700,fontFamily:"inherit",boxShadow:"0 4px 15px rgba(124,58,237,0.3)"}}>
                   + Ajouter
                 </button>
               )}
@@ -443,7 +454,7 @@ Génère un caption complet et optimisé basé sur tous ces éléments.`;
             )}
 
             {filtered.length===0&&!showAddForm&&(
-              <div style={{textAlign:"center",padding:"40px 20px",color:"rgba(255,255,255,0.12)"}}>
+              <div style={{textAlign:"center",padding:"40px 20px",color:"rgba(26,26,46,0.25)"}}>
                 <div style={{fontSize:38,marginBottom:10}}>🎬</div>
                 <div style={{fontSize:13,fontWeight:700,marginBottom:5}}>Aucune vidéo</div>
                 <div style={{fontSize:11}}>Clique sur "+ Ajouter" pour commencer</div>
@@ -457,7 +468,7 @@ Génère un caption complet et optimisé basé sur tous ces éléments.`;
                 const isExp=expandedId===video.id;
                 const isAn=analyzingId===video.id;
                 return (
-                  <div key={video.id} className="vcard" style={{background:"rgba(255,255,255,0.03)",border:"1px solid rgba(255,255,255,0.07)",borderRadius:13,overflow:"hidden",transition:"all 0.2s"}}>
+                  <div key={video.id} className="vcard" style={{background:"rgba(255,255,255,0.9)",border:"1px solid rgba(26,26,46,0.1)",borderRadius:13,overflow:"hidden",transition:"all 0.2s"}}>
                     <div style={{padding:"13px 14px"}}>
                       <div style={{display:"flex",gap:10,alignItems:"flex-start",marginBottom:10}}>
                         <div style={{width:42,height:42,borderRadius:9,background:`${tc}14`,border:`1px solid ${tc}25`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:19,flexShrink:0}}>
@@ -479,7 +490,7 @@ Génère un caption complet et optimisé basé sur tous ces éléments.`;
                       {video.analysis?.bestDay&&(
                         <div style={{background:"rgba(56,189,248,0.06)",border:"1px solid rgba(56,189,248,0.12)",borderRadius:7,padding:"6px 10px",marginBottom:10,fontSize:11,color:"#38bdf8",fontWeight:600}}>
                           📅 <strong>{video.analysis.bestDay} à {video.analysis.bestTime}</strong>
-                          {video.analysis.tip&&<span style={{color:"rgba(255,255,255,0.3)",marginLeft:8,fontWeight:400}}>· {video.analysis.tip}</span>}
+                          {video.analysis.tip&&<span style={{color:"rgba(26,26,46,0.45)",marginLeft:8,fontWeight:400}}>· {video.analysis.tip}</span>}
                         </div>
                       )}
 
@@ -492,7 +503,7 @@ Génère un caption complet et optimisé basé sur tous ces éléments.`;
                         </select>
                         <button onClick={()=>analyzeVideo(video.id,video)} disabled={isAn} style={{padding:"7px 11px",borderRadius:8,border:"none",background:"rgba(167,139,250,0.12)",color:"#a78bfa",cursor:"pointer",fontSize:10,fontWeight:700,fontFamily:"inherit",opacity:isAn?0.5:1}}>🔄</button>
                         {video.analysis&&(
-                          <button onClick={()=>setExpandedId(isExp?null:video.id)} style={{padding:"7px 11px",borderRadius:8,border:"1px solid rgba(255,255,255,0.08)",background:"transparent",color:"rgba(255,255,255,0.35)",cursor:"pointer",fontSize:10,fontFamily:"inherit"}}>
+                          <button onClick={()=>setExpandedId(isExp?null:video.id)} style={{padding:"7px 11px",borderRadius:8,border:"1px solid rgba(26,26,46,0.1)",background:"transparent",color:"rgba(26,26,46,0.5)",cursor:"pointer",fontSize:10,fontFamily:"inherit"}}>
                             {isExp?"▲":"▼ Analyse"}
                           </button>
                         )}
@@ -505,13 +516,27 @@ Génère un caption complet et optimisé basé sur tous ces éléments.`;
                         <div style={{fontSize:10,fontWeight:800,color:"rgba(167,139,250,0.5)",letterSpacing:1,marginBottom:8}}>ANALYSE IA</div>
                         <div style={{fontSize:14,fontWeight:800,marginBottom:6}}>{video.analysis.verdict}</div>
                         {video.analysis.monetizationTip&&<div style={{background:"rgba(251,191,36,0.06)",border:"1px solid rgba(251,191,36,0.12)",borderRadius:7,padding:"6px 10px",fontSize:11,color:"#fbbf24",marginBottom:10}}>💰 {video.analysis.monetizationTip}</div>}
-                        {video.analysis.caption&&(
+                        {video.analysis.captionOption1&&(
+                          <div style={{marginBottom:8}}>
+                            <div style={{fontSize:9,fontWeight:700,color:"rgba(26,26,46,0.45)",letterSpacing:0.8,marginBottom:6}}>2 OPTIONS DE CAPTION</div>
+                            {[{label:"Option A",text:video.analysis.captionOption1},{label:"Option B",text:video.analysis.captionOption2}].map((opt,i)=>(
+                              <div key={i} style={{background:"rgba(56,189,248,0.05)",border:"1px solid rgba(56,189,248,0.1)",borderRadius:8,padding:"9px 11px",marginBottom:7}}>
+                                <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:4}}>
+                                  <span style={{fontSize:9,fontWeight:700,color:"#38bdf8",letterSpacing:0.5}}>{opt.label}</span>
+                                  <CopyBtn text={opt.text}/>
+                                </div>
+                                <div style={{fontSize:11,color:"rgba(26,26,46,0.8)",lineHeight:1.6}}>{opt.text}</div>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                        {!video.analysis.captionOption1&&video.analysis.caption&&(
                           <div style={{background:"rgba(56,189,248,0.05)",border:"1px solid rgba(56,189,248,0.12)",borderRadius:8,padding:"9px 11px",marginBottom:8}}>
                             <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:4}}>
                               <span style={{fontSize:9,fontWeight:700,color:"#38bdf8",letterSpacing:0.5}}>CAPTION</span>
                               <CopyBtn text={video.analysis.caption}/>
                             </div>
-                            <div style={{fontSize:11,color:"rgba(255,255,255,0.7)",lineHeight:1.6}}>{video.analysis.caption}</div>
+                            <div style={{fontSize:11,color:"rgba(26,26,46,0.8)",lineHeight:1.6}}>{video.analysis.caption}</div>
                           </div>
                         )}
                         {video.analysis.hashtags&&(
@@ -533,13 +558,13 @@ Génère un caption complet et optimisé basé sur tous ces éléments.`;
         {tab==="schedule"&&(
           <div style={{animation:"fadeIn 0.4s ease"}}>
             <h2 style={{fontSize:19,fontWeight:900,margin:"0 0 4px",letterSpacing:0.5}}>📅 Programme</h2>
-            <p style={{color:"rgba(255,255,255,0.25)",fontSize:10,margin:"0 0 14px"}}>Basé sur tes vidéos · {videos.filter(v=>v.analysis&&v.status==="en attente").length} en attente de publication</p>
+            <p style={{color:"rgba(26,26,46,0.4)",fontSize:10,margin:"0 0 14px"}}>Basé sur tes vidéos · {videos.filter(v=>v.analysis&&v.status==="en attente").length} en attente de publication</p>
             {videos.filter(v=>v.analysis).length===0?(
               <div style={{textAlign:"center",padding:"36px 20px",background:"rgba(167,139,250,0.04)",border:"1px solid rgba(167,139,250,0.1)",borderRadius:14}}>
                 <div style={{fontSize:30,marginBottom:10}}>📁</div>
                 <div style={{fontSize:13,fontWeight:700,marginBottom:5}}>Ajoute d'abord des vidéos</div>
-                <div style={{fontSize:11,color:"rgba(255,255,255,0.25)",marginBottom:14}}>Va dans "Mes Vidéos" et ajoute tes vidéos montées</div>
-                <button onClick={()=>setTab("videos")} style={{padding:"9px 18px",borderRadius:9,border:"none",background:"linear-gradient(135deg,#7c3aed,#2563eb)",color:"white",fontSize:12,fontWeight:700,cursor:"pointer",fontFamily:"inherit"}}>→ Mes Vidéos</button>
+                <div style={{fontSize:11,color:"rgba(26,26,46,0.4)",marginBottom:14}}>Va dans "Mes Vidéos" et ajoute tes vidéos montées</div>
+                <button onClick={()=>setTab("videos")} style={{padding:"9px 18px",borderRadius:9,border:"none",background:"linear-gradient(135deg,#7c3aed,#2563eb)",color:"#1a1a2e",fontSize:12,fontWeight:700,cursor:"pointer",fontFamily:"inherit"}}>→ Mes Vidéos</button>
               </div>
             ):(
               <>
@@ -548,7 +573,7 @@ Génère un caption complet et optimisé basé sur tous ces éléments.`;
                 {aiError&&<div style={{marginTop:10,padding:10,background:"rgba(244,114,182,0.08)",border:"1px solid rgba(244,114,182,0.15)",borderRadius:8,color:"#f472b6",fontSize:11,textAlign:"center"}}>⚠️ {aiError}</div>}
                 {scheduleData&&(
                   <div style={{marginTop:14,animation:"fadeIn 0.5s ease"}}>
-                    <div style={{background:"rgba(124,58,237,0.1)",border:"1px solid rgba(167,139,250,0.15)",borderRadius:11,padding:"11px 13px",marginBottom:13,fontSize:12,color:"rgba(255,255,255,0.7)",lineHeight:1.6}}>
+                    <div style={{background:"rgba(124,58,237,0.1)",border:"1px solid rgba(167,139,250,0.15)",borderRadius:11,padding:"11px 13px",marginBottom:13,fontSize:12,color:"rgba(26,26,46,0.8)",lineHeight:1.6}}>
                       💡 {scheduleData.strategy}
                     </div>
                     {scheduleData.threads?.length>0&&(
@@ -560,14 +585,14 @@ Génère un caption complet et optimisé basé sur tous ces éléments.`;
                       {DAYS.map(day=>{
                         const dayData=scheduleData.week?.find(d=>d.day===day);
                         if(!dayData?.posts?.length)return(
-                          <div key={day} style={{background:"rgba(255,255,255,0.02)",border:"1px solid rgba(255,255,255,0.04)",borderRadius:9,padding:"9px 13px",display:"flex",gap:10,alignItems:"center"}}>
-                            <span style={{fontSize:11,fontWeight:800,color:"rgba(255,255,255,0.12)",minWidth:80}}>{day}</span>
+                          <div key={day} style={{background:"rgba(26,26,46,0.03)",border:"1px solid rgba(26,26,46,0.06)",borderRadius:9,padding:"9px 13px",display:"flex",gap:10,alignItems:"center"}}>
+                            <span style={{fontSize:11,fontWeight:800,color:"rgba(26,26,46,0.25)",minWidth:80}}>{day}</span>
                             <span style={{fontSize:9,color:"rgba(255,255,255,0.1)"}}>Repos 😴</span>
                           </div>
                         );
                         const isOpen=expandedDay===day;
                         return(
-                          <div key={day} style={{background:"rgba(255,255,255,0.03)",border:"1px solid rgba(255,255,255,0.07)",borderRadius:10,overflow:"hidden"}}>
+                          <div key={day} style={{background:"rgba(255,255,255,0.9)",border:"1px solid rgba(26,26,46,0.1)",borderRadius:10,overflow:"hidden"}}>
                             <div onClick={()=>setExpandedDay(isOpen?null:day)} style={{padding:"11px 13px",cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"space-between"}}>
                               <div style={{display:"flex",alignItems:"center",gap:9}}>
                                 <span style={{fontSize:12,fontWeight:900,minWidth:80}}>{day}</span>
@@ -579,7 +604,7 @@ Génère un caption complet et optimisé basé sur tous ces éléments.`;
                                   })}
                                 </div>
                               </div>
-                              <span style={{color:"rgba(255,255,255,0.25)",fontSize:10}}>{isOpen?"▲":"▼"}</span>
+                              <span style={{color:"rgba(26,26,46,0.4)",fontSize:10}}>{isOpen?"▲":"▼"}</span>
                             </div>
                             {isOpen&&(
                               <div style={{borderTop:"1px solid rgba(255,255,255,0.06)",padding:"11px 13px",display:"flex",flexDirection:"column",gap:10}}>
@@ -594,17 +619,17 @@ Génère un caption complet et optimisé basé sur tous ces éléments.`;
                                         <Tag label={vid.type} color={tc}/>
                                         {vid.fpvSubtype&&<Tag label={vid.fpvSubtype} color="#f472b6"/>}
                                         <Tag label={post.platform} color={pc}/>
-                                        <span style={{fontSize:9,color:"rgba(255,255,255,0.3)"}}>🕐 {post.time}</span>
+                                        <span style={{fontSize:9,color:"rgba(26,26,46,0.45)"}}>🕐 {post.time}</span>
                                       </div>
                                       <div style={{fontSize:13,fontWeight:800,marginBottom:4}}>{vid.title}</div>
-                                      {post.reason&&<div style={{fontSize:10,color:"rgba(255,255,255,0.25)",marginBottom:8}}>💡 {post.reason}</div>}
+                                      {post.reason&&<div style={{fontSize:10,color:"rgba(26,26,46,0.4)",marginBottom:8}}>💡 {post.reason}</div>}
                                       {vid.analysis?.caption&&(
                                         <div style={{background:"rgba(56,189,248,0.05)",border:"1px solid rgba(56,189,248,0.1)",borderRadius:7,padding:"7px 10px",marginBottom:6}}>
                                           <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:3}}>
                                             <span style={{fontSize:9,fontWeight:700,color:"#38bdf8",letterSpacing:0.5}}>CAPTION</span>
                                             <CopyBtn text={vid.analysis.caption}/>
                                           </div>
-                                          <div style={{fontSize:10,color:"rgba(255,255,255,0.6)",lineHeight:1.5}}>{vid.analysis.caption}</div>
+                                          <div style={{fontSize:10,color:"rgba(26,26,46,0.7)",lineHeight:1.5}}>{vid.analysis.caption}</div>
                                         </div>
                                       )}
                                       {vid.analysis?.hashtags&&(
@@ -633,7 +658,7 @@ Génère un caption complet et optimisé basé sur tous ces éléments.`;
         {tab==="analyze"&&(
           <div style={{animation:"fadeIn 0.4s ease"}}>
             <h2 style={{fontSize:19,fontWeight:900,margin:"0 0 4px"}}>🔍 Analyser</h2>
-            <p style={{color:"rgba(255,255,255,0.25)",fontSize:10,margin:"0 0 14px"}}>Analyse approfondie d'une vidéo existante</p>
+            <p style={{color:"rgba(26,26,46,0.4)",fontSize:10,margin:"0 0 14px"}}>Analyse approfondie d'une vidéo existante</p>
             <div style={{display:"flex",flexDirection:"column",gap:10}}>
               <div><label style={lbl}>URL TIKTOK / INSTAGRAM</label><input style={inp} placeholder="https://www.tiktok.com/@toi/video/..." value={fd.url} onChange={e=>f("url",e.target.value)}/></div>
               <div><label style={lbl}>TITRE</label><input style={inp} placeholder="Ex: Run FPV Ardèche 🚁" value={fd.title} onChange={e=>f("title",e.target.value)}/></div>
@@ -657,7 +682,7 @@ Génère un caption complet et optimisé basé sur tous ces éléments.`;
         {tab==="viral"&&(
           <div style={{animation:"fadeIn 0.4s ease"}}>
             <h2 style={{fontSize:19,fontWeight:900,margin:"0 0 4px"}}>🔥 Idées Virales</h2>
-            <p style={{color:"rgba(255,255,255,0.25)",fontSize:10,margin:"0 0 14px"}}>Idées taillées pour ton univers van/drone/voyage</p>
+            <p style={{color:"rgba(26,26,46,0.4)",fontSize:10,margin:"0 0 14px"}}>Idées taillées pour ton univers van/drone/voyage</p>
             <div style={{display:"flex",flexDirection:"column",gap:10}}>
               <div><label style={lbl}>TYPE</label>
                 <select style={{...inp,cursor:"pointer"}} value={fd.type} onChange={e=>f("type",e.target.value)}>
@@ -676,7 +701,7 @@ Génère un caption complet et optimisé basé sur tous ces éléments.`;
         {tab==="monetize"&&(
           <div style={{animation:"fadeIn 0.4s ease"}}>
             <h2 style={{fontSize:19,fontWeight:900,margin:"0 0 4px"}}>💰 Monétisation</h2>
-            <p style={{color:"rgba(255,255,255,0.25)",fontSize:10,margin:"0 0 14px"}}>Transforme ton univers en revenus réels</p>
+            <p style={{color:"rgba(26,26,46,0.4)",fontSize:10,margin:"0 0 14px"}}>Transforme ton univers en revenus réels</p>
             <div style={{display:"flex",flexDirection:"column",gap:10}}>
               <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:9}}>
                 <div><label style={lbl}>FOLLOWERS</label><input style={inp} type="number" placeholder="5000" value={fd.mFoll} onChange={e=>f("mFoll",e.target.value)}/></div>
